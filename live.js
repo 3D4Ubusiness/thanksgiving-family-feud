@@ -19,11 +19,14 @@ document.body.insertBefore(bar,document.body.firstChild);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const message=t=>bar.textContent=t;
 let uid=null,gameId=null,enabled=false,writing=Promise.resolve();
-function publicState(){return JSON.parse(JSON.stringify({state,practiceMode}));}
+function publicState(){
+ const overlay=document.getElementById('introOverlay');
+ return JSON.parse(JSON.stringify({state,practiceMode,intro:{visible:overlay?.classList.contains('visible')||false,step:introStep,seconds:introSeconds,paused:introPaused}}));
+}
 function push(){if(!enabled||!gameId||tv)return;const payload=publicState();writing=writing.then(()=>set(ref(db,'games/'+gameId),{ownerUid:uid,state:payload})).catch(e=>{message('Sync error: '+e.message);});}
 window.feudSyncPush=push;
 function tvRender(){
- document.querySelectorAll('.top-actions,.host-panel,.savebar,.helpdetails,.intro-overlay').forEach(el=>el.style.display='none');
+ document.querySelectorAll('.top-actions,.host-panel,.savebar,.helpdetails').forEach(el=>el.style.display='none');
  document.querySelectorAll('[data-action],#guessForm,#timerValue+button').forEach(el=>el.style.display='none');
  document.querySelectorAll('.panel').forEach(el=>{if(el.querySelector('.helpdetails'))el.style.display='none';});
 }
@@ -60,8 +63,20 @@ async function startTv(){
    if(!Array.isArray(state.deck))state.deck=[];
    practiceMode=!!record.state.practiceMode;
    render();tvRender();
+   const intro=record.state.intro;
+   const overlay=document.getElementById('introOverlay');
+   if(intro?.visible){
+     introStep=Math.max(0,Math.min(INTRO_SCENES.length-1,Number(intro.step)||0));
+     introSeconds=Math.max(0,Math.min(19,Number(intro.seconds)||0));
+     introPaused=!!intro.paused;
+     overlay.classList.add('visible');
+     document.querySelector('.intro-buttons').style.display='none';
+     introDraw();
+   }else{
+     overlay.classList.remove('visible');
+   }
    message('📺 LIVE THANKSGIVING FEUD — Audience display');
   }catch(e){message('Display error: '+e.message);}
  },e=>message('Connection error: '+e.message));
 }
-try{message('Connecting to free Firebase service…');await signIn();if(tv)await startTv();else hostReady();}catch(e){message('Live mode unavailable: '+e.message+' — Solo mode still works.');}
+try{message('Connecting to free Firebase service…');await signIn();if(tv)await startTv();else {hostReady();setInterval(()=>{if(enabled)push();},1000);}}catch(e){message('Live mode unavailable: '+e.message+' — Solo mode still works.');}
