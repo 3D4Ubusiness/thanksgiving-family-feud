@@ -19,9 +19,16 @@ document.body.insertBefore(bar,document.body.firstChild);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const message=t=>bar.textContent=t;
 let uid=null,gameId=null,enabled=false,writing=Promise.resolve();
+function introSnapshot(){
+ const overlay=document.getElementById('introOverlay');
+ const visible=!!overlay?.classList.contains('visible');
+ return {visible,html:visible?(document.getElementById('introContent')?.innerHTML||''):'',
+         progress:visible?(document.getElementById('introBar')?.style.width||'0%'):'0%',
+         time:visible?(document.getElementById('introTime')?.textContent||''):''};
+}
 function publicState(){
  const overlay=document.getElementById('introOverlay');
- return JSON.parse(JSON.stringify({state,practiceMode,intro:{visible:overlay?.classList.contains('visible')||false,step:introStep,seconds:introSeconds,paused:introPaused}}));
+ return JSON.parse(JSON.stringify({state,practiceMode,intro:introSnapshot()}));
 }
 function push(){if(!enabled||!gameId||tv)return;const payload=publicState();writing=writing.then(()=>set(ref(db,'games/'+gameId),{ownerUid:uid,state:payload})).catch(e=>{message('Sync error: '+e.message);});}
 window.feudSyncPush=push;
@@ -66,12 +73,12 @@ async function startTv(){
    const intro=record.state.intro;
    const overlay=document.getElementById('introOverlay');
    if(intro?.visible){
-     introStep=Math.max(0,Math.min(INTRO_SCENES.length-1,Number(intro.step)||0));
-     introSeconds=Math.max(0,Math.min(19,Number(intro.seconds)||0));
-     introPaused=!!intro.paused;
+     // Render the actual host instruction slide, without executing the host's game controls.
      overlay.classList.add('visible');
+     document.getElementById('introContent').innerHTML=intro.html||'<h2>HOW TO PLAY</h2>';
+     document.getElementById('introBar').style.width=intro.progress||'0%';
+     document.getElementById('introTime').textContent=intro.time||'';
      document.querySelector('.intro-buttons').style.display='none';
-     introDraw();
    }else{
      overlay.classList.remove('visible');
    }
