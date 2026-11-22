@@ -50,6 +50,14 @@ async function startTv(){
   try{
    window.stopClock?.();
    state=record.state.state;
+   // Realtime Database omits empty arrays, including a new round's revealed: [].
+   // Restore the expected shape before the original board renderer runs.
+   if(state.round){
+     if(!Array.isArray(state.round.revealed))state.round.revealed=[];
+     if(!Array.isArray(state.round.faceoffScores))state.round.faceoffScores=[-1,-1];
+   }
+   if(!Array.isArray(state.matches))state.matches=[];
+   if(!Array.isArray(state.deck))state.deck=[];
    practiceMode=!!record.state.practiceMode;
    render();tvRender();
    message('📺 LIVE THANKSGIVING FEUD — Audience display');
