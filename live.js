@@ -22,7 +22,7 @@ let uid=null,gameId=null,enabled=false,writing=Promise.resolve();
 function introSnapshot(){
  const overlay=document.getElementById('introOverlay');
  const visible=!!overlay?.classList.contains('visible');
- return {visible,html:visible?(document.getElementById('introContent')?.innerHTML||''):'',
+ return {visible,step:visible?introStep:0,seconds:visible?introSeconds:0,paused:visible?introPaused:false,html:visible?(document.getElementById('introContent')?.innerHTML||''):'',
          progress:visible?(document.getElementById('introBar')?.style.width||'0%'):'0%',
          time:visible?(document.getElementById('introTime')?.textContent||''):''};
 }
@@ -73,11 +73,12 @@ async function startTv(){
    const intro=record.state.intro;
    const overlay=document.getElementById('introOverlay');
    if(intro?.visible){
-     // Render the actual host instruction slide, without executing the host's game controls.
+     // Use the same nine-scene renderer as the host; host controls the current scene.
+     introStep=Math.max(0,Math.min(INTRO_SCENES.length-1,Number(intro.step)||0));
+     introSeconds=Math.max(0,Math.min(19,Number(intro.seconds)||0));
+     introPaused=!!intro.paused;
      overlay.classList.add('visible');
-     document.getElementById('introContent').innerHTML=intro.html||'<h2>HOW TO PLAY</h2>';
-     document.getElementById('introBar').style.width=intro.progress||'0%';
-     document.getElementById('introTime').textContent=intro.time||'';
+     introDraw();
      document.querySelector('.intro-buttons').style.display='none';
    }else{
      overlay.classList.remove('visible');
