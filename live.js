@@ -19,21 +19,11 @@ document.body.insertBefore(bar,document.body.firstChild);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const message=t=>bar.textContent=t;
 let uid=null,gameId=null,enabled=false,writing=Promise.resolve();
-function introSnapshot(){
- const overlay=document.getElementById('introOverlay');
- const visible=!!overlay?.classList.contains('visible');
- return {visible,step:visible?introStep:0,seconds:visible?introSeconds:0,paused:visible?introPaused:false,html:visible?(document.getElementById('introContent')?.innerHTML||''):'',
-         progress:visible?(document.getElementById('introBar')?.style.width||'0%'):'0%',
-         time:visible?(document.getElementById('introTime')?.textContent||''):''};
-}
-function publicState(){
- const overlay=document.getElementById('introOverlay');
- return JSON.parse(JSON.stringify({state,practiceMode,intro:introSnapshot()}));
-}
+function publicState(){return JSON.parse(JSON.stringify({state,practiceMode}));}
 function push(){if(!enabled||!gameId||tv)return;const payload=publicState();writing=writing.then(()=>set(ref(db,'games/'+gameId),{ownerUid:uid,state:payload})).catch(e=>{message('Sync error: '+e.message);});}
 window.feudSyncPush=push;
 function tvRender(){
- document.querySelectorAll('.top-actions,.host-panel,.savebar,.helpdetails').forEach(el=>el.style.display='none');
+ document.querySelectorAll('.top-actions,.host-panel,.savebar,.helpdetails,.intro-overlay').forEach(el=>el.style.display='none');
  document.querySelectorAll('[data-action],#guessForm,#timerValue+button').forEach(el=>el.style.display='none');
  document.querySelectorAll('.panel').forEach(el=>{if(el.querySelector('.helpdetails'))el.style.display='none';});
 }
@@ -60,31 +50,10 @@ async function startTv(){
   try{
    window.stopClock?.();
    state=record.state.state;
-   // Realtime Database omits empty arrays, including a new round's revealed: [].
-   // Restore the expected shape before the original board renderer runs.
-   if(state.round){
-     if(!Array.isArray(state.round.revealed))state.round.revealed=[];
-     if(!Array.isArray(state.round.faceoffScores))state.round.faceoffScores=[-1,-1];
-   }
-   if(!Array.isArray(state.matches))state.matches=[];
-   if(!Array.isArray(state.deck))state.deck=[];
    practiceMode=!!record.state.practiceMode;
    render();tvRender();
-   const intro=record.state.intro;
-   const overlay=document.getElementById('introOverlay');
-   if(intro?.visible){
-     // Use the same nine-scene renderer as the host; host controls the current scene.
-     introStep=Math.max(0,Math.min(INTRO_SCENES.length-1,Number(intro.step)||0));
-     introSeconds=Math.max(0,Math.min(19,Number(intro.seconds)||0));
-     introPaused=!!intro.paused;
-     overlay.classList.add('visible');
-     introDraw();
-     document.querySelector('.intro-buttons').style.display='none';
-   }else{
-     overlay.classList.remove('visible');
-   }
    message('📺 LIVE THANKSGIVING FEUD — Audience display');
   }catch(e){message('Display error: '+e.message);}
  },e=>message('Connection error: '+e.message));
 }
-try{message('Connecting to free Firebase service…');await signIn();if(tv)await startTv();else {hostReady();setInterval(()=>{if(enabled)push();},1000);}}catch(e){message('Live mode unavailable: '+e.message+' — Solo mode still works.');}
+try{message('Connecting to free Firebase service…');await signIn();if(tv)await startTv();else hostReady();}catch(e){message('Live mode unavailable: '+e.message+' — Solo mode still works.');}
